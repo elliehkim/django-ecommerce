@@ -199,6 +199,9 @@ if 'AWS_STORAGE_BUCKET_NAME' in os.environ:
     AWS_LOCATION = 'static'
     STATIC_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_DOMAIN, AWS_LOCATION)
 
+    AWS_MEDIA_LOCATION = 'static/images' 
+    MEDIA_URL = 'https://%s/%s/' % (AWS_S3_CUSTOM_DOMAIN, AWS_MEDIA_LOCATION)
+
 
 else:
     STATIC_URL = '/static/'
