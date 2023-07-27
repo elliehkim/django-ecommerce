@@ -45,8 +45,8 @@ def create_payment(request):
     })
 
 
-# Stripe Webhook can not be integrated in the website deployed
-# I have tried with the stripe live webhook but the dummy test card didn't work.... so decided not to use webhook.
+# Stripe Webhook can not be integrated in the website deployed on AWS
+# I have integrated the stripe live webhook in the website but the dummy test card didn't work as it had to work with the production version .... so decided not to use webhook.
 
 # @csrf_exempt
 # def stripe_webhook(request):
