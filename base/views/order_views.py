@@ -44,65 +44,122 @@ def create_payment(request):
         'clientSecret': intent.client_secret
     })
 
-@csrf_exempt
-def stripe_webhook(request):
-    payload = request.body
-    sig_header = request.headers.get('stripe-signature')
 
+# Stripe Webhook can not be integrated in the website deployed
+# I have tried with the stripe live webhook but the dummy test card didn't work.... so decided not to use webhook.
+
+# @csrf_exempt
+# def stripe_webhook(request):
+#     payload = request.body
+#     sig_header = request.headers.get('stripe-signature')
+
+#     current_time = datetime.now(pytz.utc)
+#     nzst = pytz.timezone('Pacific/Auckland')
+
+#     try:
+#         event = stripe.Webhook.construct_event(
+#             payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+#         )
+
+#         data = event['data']
+#         event_type = event['type']
+
+#         if event_type == 'payment_intent.succeeded':
+#             # Handle successful payment event
+#             payment_intent = event['data']['object']
+#             amount = payment_intent['amount']
+#             order_items = json.loads(payment_intent['metadata']['order_items'])
+#             shipping_address = json.loads(payment_intent['metadata']['shipping_address'])
+#             shipping_price = payment_intent['metadata']['shipping_price']
+#             total_price = payment_intent['metadata']['total_price']
+#             user_id = payment_intent['metadata']['user']
+#             print('Payment Intent Received: ', amount, order_items, shipping_address, total_price, user_id )
+
+#             order = Order.objects.create(
+#                 user= User.objects.get(id=user_id),
+#                 shippingPrice= shipping_price,
+#                 totalPrice= total_price,
+#                 isPaid = True,
+#                 paidAt = current_time.astimezone(nzst),
+#             )
+#             shipping = ShippingAddress.objects.create(
+#             order= order,
+#             address= shipping_address['address'],
+#             city= shipping_address['city'],
+#             postcode= shipping_address['postcode']
+#             )
+            
+#             for i in order_items:
+#                 product = Product.objects.get(_id=i['product'])
+
+#                 item = OrderItem.objects.create(
+#                     product= product,
+#                     order= order,
+#                     name= product.name,
+#                     qty= i['qty'],
+#                     price= i['price'],
+#                     image= product.image.url,
+#                 )
+
+#         return HttpResponse(status=200)
+    
+#     except ValueError as e:
+#         return HttpResponse(status=400)
+#     except stripe.error.SignatureVerificationError as e:
+#         return HttpResponse(status=400)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def addOrderItems(request):
+    user = request.user
+    data = request.data
+
+    print(data)
+
+    orderItems = data['orderItems']
     current_time = datetime.now(pytz.utc)
     nzst = pytz.timezone('Pacific/Auckland')
 
-    try:
-        event = stripe.Webhook.construct_event(
-            payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+    if orderItems and len(orderItems) == 0:
+        return Response({'detail': 'No Order Items'}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+
+        # (1) Create order
+
+        order = Order.objects.create(
+            user=user,
+            shippingPrice=data['shippingPrice'],
+            totalPrice=data['totalPrice'],
+            isPaid = True,
+            paidAt = current_time.astimezone(nzst),
         )
 
-        data = event['data']
-        event_type = event['type']
+        # (2) Create shipping address
 
-        if event_type == 'payment_intent.succeeded':
-            # Handle successful payment event
-            payment_intent = event['data']['object']
-            amount = payment_intent['amount']
-            order_items = json.loads(payment_intent['metadata']['order_items'])
-            shipping_address = json.loads(payment_intent['metadata']['shipping_address'])
-            shipping_price = payment_intent['metadata']['shipping_price']
-            total_price = payment_intent['metadata']['total_price']
-            user_id = payment_intent['metadata']['user']
-            print('Payment Intent Received: ', amount, order_items, shipping_address, total_price, user_id )
+        shipping = ShippingAddress.objects.create(
+            order=order,
+            address=data['shippingAddress']['address'],
+            city=data['shippingAddress']['city'],
+            postcode=data['shippingAddress']['postcode'],
+        )
 
-            order = Order.objects.create(
-                user= User.objects.get(id=user_id),
-                shippingPrice= shipping_price,
-                totalPrice= total_price,
-                isPaid = True,
-                paidAt = current_time.astimezone(nzst),
+        # (3) Create order items adn set order to orderItem relationship
+        for i in orderItems:
+            product = Product.objects.get(_id=i['product'])
+
+            item = OrderItem.objects.create(
+                product=product,
+                order=order,
+                name=product.name,
+                qty=i['qty'],
+                price=i['price'],
+                image=product.image.url,
             )
-            shipping = ShippingAddress.objects.create(
-            order= order,
-            address= shipping_address['address'],
-            city= shipping_address['city'],
-            postcode= shipping_address['postcode']
-            )
-            
-            for i in order_items:
-                product = Product.objects.get(_id=i['product'])
 
-                item = OrderItem.objects.create(
-                    product= product,
-                    order= order,
-                    name= product.name,
-                    qty= i['qty'],
-                    price= i['price'],
-                    image= product.image.url,
-                )
 
-        return HttpResponse(status=200)
-    
-    except ValueError as e:
-        return HttpResponse(status=400)
-    except stripe.error.SignatureVerificationError as e:
-        return HttpResponse(status=400)
+        serializer = OrderSerializer(order, many=False)
+        return Response(serializer.data)
 
 
 @api_view(['GET'])

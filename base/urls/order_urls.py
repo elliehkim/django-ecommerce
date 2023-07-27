@@ -7,5 +7,6 @@ urlpatterns = [
     path('create_payment_intent/', views.create_payment, name='create_payment_intent'),
     path('myorders/', views.getMyOrders, name='get_my_orders'),
     path('<str:pk>', views.getOrderById, name='get_order_byid'),
-    path('webhooks/stripe/', views.stripe_webhook, name='stripe_webhook'),
+    # path('webhooks/stripe/', views.stripe_webhook, name='stripe_webhook'),
+    path('add/', views.addOrderItems, name='add_order')
 ]
